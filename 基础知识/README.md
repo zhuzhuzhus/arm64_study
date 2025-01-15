@@ -170,8 +170,189 @@ mydata:
     add <Rd>,<Rn>,<Rm>{,<extend> {#amount}}
     ~~~
     重点关注extend和amount字段。
-    extend对应指令编码的option字段，option的值和：
-    - 000 表示对8位数据进行无符号扩展
-    - 001 表示对16位数据进行无符号扩展
-    - 010 表示对32位数据进行无符号扩展
-    - 011 表示对64位数据进行无符号扩展
+    extend对应指令编码的option字段，option的值和表达效果对应如下：
+    - 000 表示对8位数据进行无符号扩展               UXTB
+    - 001 表示对16位数据进行无符号扩展              UXTH
+    - 010 表示对32位数据进行无符号扩展              UXTW
+    - 011 表示对64位数据进行无符号扩展|逻辑左移操作  LSL|WXTX
+    - 100 表示对8位数据进行有符号扩展               SXTB
+    - 101 表示对16位数据进行有符号扩展              SXTH
+    - 110 表示对32位数据进行有符号扩展              SXTW
+    - 111 表示对64位数据进行有符号扩展              SXTX
+    amount：当extend为lsl操作时，它的取值范围是0-4，对应指令编码中的imm3字段
+    ~~~asm
+    mov x1,#1
+    mov x2,#0x108a
+    add x0,x1,x2,UXTB #x0=0x8b
+    add x0,x1,x2,SXTB #x0=0xffffffffffffff8b
+    ~~~
+3. 使用移位操作的加法指令
+    ~~~asm
+    add <xd>,<xn>,<xm>{,<shift> #<amount>}
+    ~~~
+    - shift：对应指令编码中的shift字段，shift字段的值和表达效果对应如下：
+        - 000 表示LSL操作
+        - 001 表示LSR操作
+        - 010 表示ASR操作
+    - amount：移位的数量，取值范围为0-63
+
+    例：
+    ~~~asm
+    add x0,x1,x2,lsl 13 #x0=x1+x2<<13
+    ~~~
+**ADDS是ADD指令的变种，它的区别在于ADDS指令会影响PSTATE寄存器的NZCV标志位,SUBS同理**
+
+**ADC是进位加法指令，最终的计算结果需要考虑PASTATE寄存器的C标志位,最终计算结果会加上C标志位的值**
+
+
+subs指令计算方式：`operand1 +NOT(operand2) + 1`NOT(operand2)是对operand2取反。当计算结果发生无符号数溢出时，C=1，计算结果为负数时N=1
+当进行无符号计算的时候，当被减数小于减数时不会发生无符号溢出，反之则会发生无符号溢出。
+
+SBC指令会考虑到C标志位计算公式为`option1 + NOT(operand2) + C`
+
+#### CMP 指令
+1. 使用立即数的cmp指令
+    ~~~asm
+    CMP <Xn>,#<imm>{,<shift>}
+    ~~~
+    等同于
+    ~~~asm
+    SUBS XZR <Xn>，#<imm> {,{shift}}
+    ~~~
+    因此立即数最大只能表示4095
+2. 使用立即数的CMP指令：
+    ~~~asm
+    CMP <Xn>,<Xm>{,<extend>,#<amount> }
+    ~~~
+    等同于
+    ~~~asm
+    SUBS XZR <Xn>,<Xm> {,<extend>,#<amount>}
+    ~~~
+    同样amount的取值范围和sub一样
+3. 使用移位操作的cmp指令
+    ~~~asm
+    CMP <Xn>,<Xm>{,<shift> #<amount>}
+    ~~~
+    等同于
+    ~~~asm
+    SUBS XZR <Xn>,<Xm>{,<shift> #<amount>}
+    ~~~
+    同样amount的取值范围和sub一样
+4. cmp与条件后缀
+    ~~~asm
+    cmp x1,x2
+    b.cs label
+    ~~~
+    CMP判断是否触发无符号溢出的计算公司与SUBS类似
+
+#### 移位指令
+1. lsl，逻辑左移指令，最高位会被丢弃，最低位补0
+2. lsr，逻辑右移指令，最高位补0，最低位丢弃
+3. asr，算术右移指令，最高位补符号位，最低位丢弃
+4. ror，循环右移指令，最低为会被移动到最高位
+
+#### 位操作指令
+1. and，按位与指令
+    ~~~asm
+    AND <Xd>,<Xn>,#<imm>
+    AND <Xd>,<Xn>,<Xm>{,<shift> #<amount>}
+    ~~~
+    1. 立即数方式：对Xn寄存器中的内容和imm进行按位与操作，结果存储到Xd寄存器中
+    2. 寄存器方式：对Xn寄存器中的内容和Xm寄存器中的内容进行按位与操作，结果存储到Xd寄存器中。
+    3. shift表示移位操作，支持所有4种移位指令
+    4. amount表示移位的数量，取值范围为0-63
+2. ands，带条件标志位的与操作，影响Z标志位，其他与NAD指令相同
+
+1. ORR，按位或指令
+    ~~~asm
+    ORR <Xd>,<Xn>,#<imm>
+    ORR <Xd>,<Xn>,<Xm>{,<shift> #<amount>}
+    ~~~
+    1. 立即数方式：对Xn寄存器中的内容和imm进行按位或操作，结果存储到Xd寄存器中
+    2. 寄存器方式：对Xn寄存器中的内容和Xm寄存器中的内容进行按位或操作，结果存储到Xd寄存器中。
+    3. shift表示移位操作，支持所有4种移位指令
+    4. amount表示移位的数量，取值范围为0-63
+2. EOR，异或指令
+    ~~~asm
+    EOR <Xd>,<Xn>,#<imm>
+    EOR <Xd>,<Xn>,<Xm>{,<shift> #<amount>}
+    ~~~
+    1. 立即数方式：对Xn寄存器中的内容和imm进行按位异或操作，结果存储到Xd寄存器中
+    2. 寄存器方式：对Xn寄存器中的内容和Xm寄存器中的内容进行按位异或操作，结果存储到Xd寄存器中。
+    3. shift表示移位操作，支持所有4种移位指令
+    4. amount表示移位的数量，取值范围为0-63
+
+1. BIC，按位清除指令
+    ~~~asm
+    BIC <Xd>,<Xn>,<Xm>{,<shift> #<amount>}
+    ~~~
+    BIC指令支持寄存器模式，先对Xm寄存器中的内容进行移位操作，然后对Xn寄存器中的内容和移位后的Xm寄存器中的内容进行位清除操作。
+
+1. CLZ，计算前导零指令
+    ~~~asm
+    CLZ <Xd>,<Xn>
+    ~~~
+    CLZ指令用于计算Xn寄存器中的内容中前导零的数量，结果存储到Xd寄存器中，例：
+    ~~~asm
+    ldr x1,=0x1100000034578000
+    clz x0,x1
+    ~~~
+    x1寄存器里为1的最高位为60位，前面还有3个为0的位，最终X0寄存器的值为3。
+
+#### 位段操作指令
+
+1. BFI指令：
+    ~~~asm
+    BFI <Xd>,<Xn>,#<lsb>,#<width>
+    ~~~
+    BFI指令的作用是用Xn寄存器中的Bit[0,width-1]替换Xd寄存器中的Bit[lsb,lsb+width-1],Xd寄存器的其他位不变。
+    ~~~asm
+    val &= ~(0xf << 4)
+    val |= (0x5 << 4)
+    ~~~
+    上面的代码等价于
+    ~~~asm
+    mov x0,#0
+    mov x1,#0x5
+    bfi x0,x1,#4,#4
+    ~~~
+    上面的代码将x1寄存器中的Bit[0,3]替换到x0寄存器中的Bit[4,7]，x0寄存器的其他位不变。
+2. UBFX指令：
+    ~~~asm
+    UBFX <Xd>,<Xn>,#<lsb>,#<width>
+    ~~~
+    UBFI指令的作用是用Xn寄存器中的Bit[lsb,lsb+width-1]替换Xd寄存器中的Bit[0,width-1],Xd寄存器的其他位不变。
+3. SBFX指令在提取字段以后做符号拓展，当提取后的字段中最高位为1时Xd寄存器的高位都要填充1
+
+
+### 比较与跳转指令
+#### 比较指令
+1. cmp指令，不过多赘述，前面已经用了很多
+2. cmn指令，用于将一个数和另一个数的相反数进行比较，基本格式如下：
+    ~~~asm
+    CMN <Xn>,#<imm>{,<shift>}
+    CMN <Xn>,<Xm>{,<extend> #<amount>}
+    ~~~
+    上面两条指令相当于如下指令：
+    ~~~asm
+    ADDS XZR,<Xn>,#<imm>{,<shift>}
+    ADDS XZR,<Xn>,<Xm>{,<extend> #<amount>}
+    ~~~
+    CMN指令的计算过程就是把第一个操作数加上第二个操作数，计算结果会影响PSTATE寄存器的NZCV标志位。
+3. CSEL指令
+    ~~~asm
+    CSEL <Xd>,<Xn>,<Xm>,<cond>
+    ~~~
+    CSEL指令用于判断cond是否为真，如果为真，则返回Xn，否则返回Xm，把结果写回Xd寄存器。
+3. CSET指令
+    ~~~asm
+    CSET <Xd>,<cond>
+    ~~~
+    CSET指令用于判断cond是否为真，如果为真，则返回1，否则返回0，把结果写回Xd寄存器。
+4. CSINC指令
+    ~~~asm
+    CSINC <Xd>,<Xn>,<Xm>,<cond>
+    ~~~
+    CSINC指令用于判断cond是否为真，如果为真返回Xn，否则返回Xm+1，把结果写回Xd寄存器。
+
+#### 跳转与返回指令
