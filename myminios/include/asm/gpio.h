@@ -8,5 +8,5 @@
 #define GPCLR0          (PBASE+0x00200028)
 #define GPPUD           (PBASE+0x00200094)
 #define GPPUDCLK0       (PBASE+0x00200098)
-
+#define GPIO_PUP_PDN_CNTRL_REG0 (PBASE+0x002000E4)
 #endif  /*_P_GPIO_H */

@@ -26,11 +26,11 @@ OBJ_FILES += $(ASM_FILES:%.S=$(BUILD_DIR)/%_s.o)
 # 自动创建构建目录
 $(BUILD_DIR)/%_c.o: %.c
 	mkdir -p $(@D)
-	$(ARMGNU)-gcc $(COPS) -MMD -c $< -o $@
+	$(ARMGNU)-gcc $(COPS) -MMD -c $< -o $@ -O0 -g
 
 $(BUILD_DIR)/%_s.o: %.S
 	mkdir -p $(@D)
-	$(ARMGNU)-gcc $(ASMOPS) -MMD -c $< -o $@
+	$(ARMGNU)-gcc $(ASMOPS) -MMD -c $< -o $@ -O0 -g
 
 # 依赖文件处理
 DEP_FILES := $(OBJ_FILES:%.o=%.d)
